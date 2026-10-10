@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CopraCure</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS SDK CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        /* Custom Toggle Switch Styles */
+        .toggle-checkbox:checked { right: 0; border-color: #10B981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+        
+        /* Fixed: Dot moves to the left (1.5rem) when OFF and turns RED */
+        .toggle-checkbox { right: 1.5rem; z-index: 1; border-color: #EF4444; transition: all 0.3s; }
+        .toggle-label { width: 3rem; height: 1.5rem; background-color: #EF4444; border-radius: 9999px; transition: all 0.3s; }
+        
+        .toggle-dot { left: 0.125rem; top: 0.125rem; width: 1.25rem; height: 1.25rem; background-color: white; border-radius: 50%; transition: all 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .toggle-checkbox:checked ~ .toggle-dot { transform: translateX(1.5rem); }
+        
+        /* Dark mode overrides */
+        .dark .toggle-checkbox { border-color: #B91C1C; }
+        .dark .toggle-checkbox:checked { border-color: #10B981; }
+        .dark .toggle-label { background-color: #B91C1C; }
+        .dark .toggle-checkbox:checked + .toggle-label { background-color: #10B981; }
+
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #10B981; cursor: pointer; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 m-0 p-0 font-sans antialiased text-slate-800 dark:text-slate-100 selection:bg-emerald-500 selection:text-white transition-colors duration-300">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-24 right-6 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg transform translate-x-full opacity-0 transition-all duration-300 z-50 flex items-center text-sm font-bold">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toast-msg">Action triggered</span>
+    </div>
+
+    <!-- Top Navbar -->
+    <header class="w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 shadow-sm transition-colors h-20 flex items-center">
+        <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            
+            <!-- Left Branding -->
+            <div class="flex items-center space-x-3 cursor-pointer group" onclick="window.location.href='index.html'">
+                <div class="bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-100 dark:border-emerald-900 group-hover:scale-105 transition">
+                    <img src="logo.png" alt="CopraCure Logo" class="w-8 h-auto object-contain">
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-white leading-none">Copra<span class="text-[#124E2E] dark:text-emerald-400">Cure</span></h1>
+                    <p class="text-[9px] text-slate-400 font-medium tracking-wide mt-0.5" data-en="Solar-Hybrid Drying & Moisture Control" data-tl="Solar-Hybrid na Pagpapatuyo at Pagkontrol ng Basa">Integration of Solar-Hybrid Drying and Moisture Monitoring Systems for Reducing Aflatoxin Contamination Risk</p>
+                </div>
+            </div>
+
+            <!-- Middle Badges -->
+            <div class="hidden xl:flex items-center space-x-4 text-xs font-bold">
+                <div class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-full flex items-center border border-amber-200 dark:border-amber-800">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span> <span data-en="DRYING IN PROGRESS" data-tl="NAGPAPATUYO NGAYON">DRYING IN PROGRESS</span>
+                </div>
+                <div class="text-slate-500 dark:text-slate-400 font-mono">#BATCH-2026-001</div>
+                <div class="text-slate-700 dark:text-slate-300 flex items-center"><svg class="w-4 h-4 mr-1 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> <span data-en="31:44:01 remaining" data-tl="31:44:01 natitira">31:44:01 remaining</span></div>
+            </div>
+
+            <!-- Right Controls & User Profile -->
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleTheme()" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm" title="Toggle Theme">
+                    <svg id="sun-icon" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <svg id="moon-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                </button>
+
+                <!-- Language Toggle -->
+                <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <button id="lang-en" onclick="setLanguage('en')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#124E2E] text-white shadow-sm transition">EN</button>
+                    <button id="lang-tl" onclick="setLanguage('tl')" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">TL</button>
+                </div>
+
+                <!-- Operation Mode Toggle -->
+                <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm font-bold text-[11px] hidden sm:flex">
+                    <button id="btn-auto" onclick="setMode('AUTO')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-sm transition">AUTO</button>
+                    <button id="btn-manual" onclick="setMode('MANUAL')" class="text-slate-500 dark:text-slate-400 px-3 py-1.5 hover:text-slate-800 dark:hover:text-white transition">MANUAL</button>
+                </div>
+                
+                <!-- ESP32 E-STOP -->
+                <button onclick="triggerEStop()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md shadow-red-500/20 flex items-center transition transform hover:-translate-y-0.5">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg> 
+                    E-STOP
+                </button>
+                
+                <div class="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
+
+                <!-- USER PROFILE MENU -->
+                <div class="relative group cursor-pointer">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#124E2E] to-emerald-500 flex items-center justify-center text-white font-bold shadow-sm" id="user-initial">U</div>
+                    </div>
+                    <!-- Dropdown -->
+                    <div class="absolute right-0 mt-3 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            <p class="text-sm font-bold text-slate-800 dark:text-white" id="profile-name">User Account</p>
+                            <p class="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate mt-1" id="profile-email">Loading...</p>
+                        </div>
+                        <div class="p-2">
+                            <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> 
+                                <span data-en="Log Out" data-tl="Mag-Log Out">Log Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        
+        <!-- Preventive Alert & Accumulation Protocol Module -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-50 dark:bg-emerald-900/10 rounded-bl-full pointer-events-none"></div>
+            
+            <div class="flex flex-col lg:flex-row justify-between items-start gap-6 relative z-10">
+                <div class="flex items-start space-x-4">
+                    <div class="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 p-3 rounded-2xl border border-emerald-200 dark:border-emerald-800">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-black text-slate-900 dark:text-white" data-en="Preventive Alert & Contamination Protocol Module" data-tl="Modul ng Alerto at Protokol Laban sa Kontaminasyon">Preventive Alert & Contamination Protocol Module</h2>
+                        <p class="text-slate-600 dark:text-slate-400 text-sm mt-1" data-en="Optimal / On Track: moisture reduction, microclimate stability, and CV inspection remain within the preventive control trajectory." data-tl="Normal / Maayos: Ang pagbaba ng basa, klima sa loob, at kamera ay nasa ligtas na antas.">Optimal / On Track: moisture reduction, microclimate stability, and CV inspection remain within the preventive control trajectory.</p>
+                        
+                        <div class="flex flex-wrap items-center gap-4 mt-5">
+                            <div class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl shadow-sm">
+                                <p class="text-[9px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1" data-en="Aflatoxin Accumulation Risk" data-tl="Peligro ng Aflatoxin">Aflatoxin Accumulation Risk</p>
+                                <div class="flex items-center space-x-2">
+                                    <span id="cv-risk-indicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span id="cv-risk-text" class="text-sm font-black text-emerald-600 dark:text-emerald-400" data-en="LOW RISK" data-tl="LIGTAS">LOW RISK</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                                <span class="bg-emerald-600 text-white px-3 py-2 rounded-lg shadow-sm" data-en="Optimal / On Track" data-tl="Nasa Maayos na Daloy">Optimal / On Track</span>
+                                <span class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700" data-en="48h Drying Rate Warning" data-tl="Babala sa Bilis ng Pagkatuyo">48h Drying Rate Warning</span>
+                                <span class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700" data-en="Mold Detected - Isolation Required" data-tl="May Amag - Kailangang Ihiwalay">Mold Detected - Isolation Required</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-end space-y-4">
+                    <button onclick="simulateCVAlert('HIGH')" class="bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 border border-slate-200 dark:border-slate-700 px-5 py-2 rounded-xl text-xs font-bold shadow-sm hover:border-red-400 transition" data-en="Simulate High Mold Alert" data-tl="I-test ang Babala sa Amag">
+                        Simulate High Mold Alert
+                    </button>
+                    <button onclick="simulateCVAlert('NONE')" class="mt-2 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 px-5 py-2 rounded-xl text-xs font-bold shadow-sm hover:border-emerald-400 transition" data-en="Reset Alert" data-tl="I-reset ang Babala">
+                        Reset Alert
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Data Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <!-- Card 1: Temp -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Chamber Temp" data-tl="Temperatura sa Loob">Chamber Temp</h3>
+                    <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center">
+                        <span class="text-amber-500 font-bold">°C</span>
+                    </div>
+                </div>
+                <div class="flex items-baseline mb-4">
+                    <span class="text-5xl font-black text-amber-500 transition-all duration-300" id="val-temp">--.-</span>
+                </div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 font-medium mb-6">
+                    <p id="temp-logs" data-en="Fetching real-time sensor data..." data-tl="Kumukuha ng datos...">Fetching real-time sensor data...</p>
+                </div>
+                <div class="relative w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mt-auto mb-2">
+                    <div class="absolute left-0 top-0 h-full bg-amber-500 rounded-full" style="width: 45%;"></div>
+                    <div class="absolute left-[45%] top-0 h-full bg-emerald-400 rounded-r-full" style="width: 30%;"></div>
+                </div>
+                <div class="flex justify-between text-[10px] font-bold text-slate-400">
+                    <span>30°C</span><span class="text-emerald-500" data-en="Optimal" data-tl="Sakto">Optimal</span><span>80°C</span>
+                </div>
+            </div>
+
+            <!-- Card 2: Humidity -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-sm flex flex-col">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Relative Humidity" data-tl="Halumigmig (Humidity)">Relative Humidity</h3>
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+                </div>
+                <div class="flex items-baseline mb-3">
+                    <span class="text-5xl font-black text-blue-500 transition-all duration-300" id="val-hum">--.-</span>
+                    <span class="text-lg font-bold text-slate-400 ml-1">%</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-6" data-en="Target: <35%" data-tl="Target: <35%">Target: <35%</p>
+                
+                <div class="flex items-center gap-4 flex-grow">
+                    <!-- Circular Progress -->
+                    <div class="relative w-14 h-14 flex-shrink-0">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-slate-100 dark:text-slate-800" stroke-width="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="text-blue-500" stroke-dasharray="38.1, 100" stroke-width="4" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                        <p data-en="Fresh: ~85%" data-tl="Sariwa: ~85%">Fresh: ~85%</p>
+                        <p class="text-blue-500 font-bold" data-en="Safe aw < 0.85" data-tl="Ligtas aw < 0.85">Safe aw < 0.85</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Moisture -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Copra Moisture" data-tl="Pagkabasa ng Copra">Copra Moisture</h3>
+                    <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                </div>
+                <div class="flex items-baseline mb-4">
+                    <span class="text-5xl font-black text-emerald-500 transition-all duration-300" id="val-moist">--.-</span>
+                    <span class="text-lg font-bold text-slate-400 ml-1">%</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-5">Initial (Mi): 50.0%<br>(Target: ≤6.0%)</p>
+                
+                <div class="w-full mb-4">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+                        <span>Mi 50%</span><span class="text-emerald-500 ml-auto mr-12" data-en="Tracking" data-tl="Kasalukuyan">Tracking</span><span>≤6%</span>
+                    </div>
+                    <div class="flex w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 71.8%;"></div>
+                        <div class="h-full bg-emerald-300 ml-1 rounded-r-full" style="width: 8%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4: Est Completion -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-sm">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Est. Completion" data-tl="Matatapos sa">Est. Completion</h3>
+                    <div class="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                </div>
+                <div class="flex items-baseline mb-4">
+                    <span class="text-5xl font-black text-purple-500 tracking-tighter">13h 38m</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-5" data-en="Drop rate: 0.55%/hr" data-tl="Bilis ng pagtuyo: 0.55%/hr">Drop rate: 0.55%/hr</p>
+                
+                <div class="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-2 flex">
+                    <div class="h-full bg-purple-500 rounded-l-full" style="width: 75%;"></div>
+                    <div class="h-full bg-emerald-300 ml-1 rounded-r-full" style="width: 15%;"></div>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-6" data-en="Remaining: 7.5% to shed" data-tl="Natitira: 7.5% na basa">Remaining: 7.5% to shed</p>
+            </div>
+        </div>
+
+        <!-- Middle Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left: ESP32-CAM Tray View -->
+            <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex flex-col">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div class="flex items-center space-x-3">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center" data-en="ESP32-CAM • Tray Overhead" data-tl="Kamera sa Loob ng Dryer">
+                            <svg class="w-5 h-5 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            ESP32-CAM • Tray Overhead
+                        </h3>
+                        <span class="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span> LIVE</span>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center space-x-2 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg">
+                            <span class="text-slate-500 dark:text-slate-400" data-en="Contamination Stratification:" data-tl="Antas ng Amag:">Contamination Stratification:</span>
+                            <span id="cv-strat-label" class="text-emerald-600 dark:text-emerald-400">NONE (0%)</span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-400 flex space-x-3">
+                            <button onclick="sendToESP32('Camera Feed', 'REFRESH')" class="flex items-center hover:text-slate-700 dark:hover:text-white transition"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> <span data-en="Refresh" data-tl="I-refresh">Refresh</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Screen -->
+                <div id="camera-feed-container" class="w-full bg-[#070b14] rounded-2xl relative flex-grow min-h-[350px] border-2 border-slate-800 overflow-hidden flex flex-col justify-between group transition-colors duration-300">
+                    <div class="absolute top-4 left-4 border-t-2 border-l-2 border-amber-500 w-8 h-8 opacity-50 group-hover:opacity-100 transition"></div>
+                    <div class="absolute top-4 right-4 border-t-2 border-r-2 border-amber-500 w-8 h-8 opacity-50 group-hover:opacity-100 transition"></div>
+                    <div class="absolute bottom-4 left-4 border-b-2 border-l-2 border-amber-500 w-8 h-8 opacity-50 group-hover:opacity-100 transition"></div>
+                    <div class="absolute bottom-4 right-4 border-b-2 border-r-2 border-amber-500 w-8 h-8 opacity-50 group-hover:opacity-100 transition"></div>
+                    
+                    <div class="p-5 flex justify-between items-center text-[11px] font-mono font-bold z-10">
+                        <span class="text-slate-500">copra_tray_feed_v1</span>
+                        <span class="text-amber-500 bg-[#070b14]/80 px-2 py-1 rounded">BATCH-2026-001 - <span id="clock">9:25:04 PM</span></span>
+                    </div>
+
+                    <div class="p-5 flex justify-between items-end mt-auto z-10">
+                        <div class="flex space-x-2">
+                            <span class="bg-emerald-600/90 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold border border-emerald-500">MDBP - ACTIVE</span>
+                        </div>
+                        <button onclick="sendToESP32('ESP32-CAM Flash', 'TOGGLED')" class="bg-amber-500 hover:bg-amber-400 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold flex items-center transition shadow-lg shadow-amber-500/20 border border-amber-400">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> CAM FLASH
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex flex-wrap justify-between items-center text-[11px] font-bold gap-3">
+                    <span class="text-slate-400">Res: 1280x720 • FPS: 10 • Codec: MJPEG</span>
+                    <span class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800/50 flex items-center" data-en="Model Accuracy: 94.2% (Verified)" data-tl="Katumpakan ng Camera: 94.2%">
+                        Model Accuracy: 94.2% (Verified)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Right: Heater & Actuators -->
+            <div class="lg:col-span-5 space-y-6 flex flex-col">
+                <!-- Heater Card -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm relative">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center" data-en="12V PTC Heater • Relay Module" data-tl="Heater (Pampainit)">
+                            <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path></svg>
+                            12V PTC Heater • Relay Module
+                        </h3>
+                        <span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 text-[10px] font-bold px-3 py-1.5 rounded-lg" data-en="ENGAGED" data-tl="NAKABUKAS">ENGAGED</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 text-center mb-6 divide-x divide-slate-100 dark:divide-slate-800">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Wattage</p>
+                            <p class="text-4xl font-black text-amber-500">350W</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1" data-en="Heatsink" data-tl="Init ng Makina">Heatsink</p>
+                            <p class="text-4xl font-black text-emerald-500 flex items-center justify-center">41°C <svg class="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></p>
+                        </div>
+                    </div>
+                    
+                    <div class="text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100 dark:border-amber-900/50 space-y-2">
+                        <p><strong class="font-bold">Relay State:</strong> ON (Closed-Loop Active)</p>
+                        <p><strong class="font-bold">Control Logic:</strong> Auto-ON when Temp < 55°C</p>
+                    </div>
+                </div>
+
+                <!-- Actuator Controls -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm flex-grow flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Actuator Controls" data-tl="Mga Kontrol (Fans at Ilaw)">Actuator Controls</h3>
+                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg border border-amber-100 dark:border-amber-800/50 hidden sm:block">Auto-Ventilation Rule: ENGAGED</span>
+                    </div>
+
+                    <div class="space-y-4 flex-grow">
+                        <!-- Fan A Toggle -->
+                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-white dark:bg-slate-700 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600">
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-800 dark:text-white" data-en="Exhaust Fan A" data-tl="Bentilador (Exhaust) A">Exhaust Fan A</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">1400 RPM • 12V DC</p>
+                                </div>
+                            </div>
+                            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggleA" id="toggleA" checked onchange="sendToESP32('Fan A', this.checked)" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="toggleA" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <!-- Fan B Toggle -->
+                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl">
+                            <div class="flex items-center space-x-4">
+                                <div class="p-2 bg-white dark:bg-slate-700 rounded-xl shadow-sm border border-slate-100 dark:border-slate-600">
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-800 dark:text-white" data-en="Exhaust Fan B" data-tl="Bentilador (Exhaust) B">Exhaust Fan B</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">1380 RPM • 12V DC</p>
+                                </div>
+                            </div>
+                            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggleB" id="toggleB" checked onchange="sendToESP32('Fan B', this.checked)" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                <label for="toggleB" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <!-- LED Strip -->
+                        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center space-x-4">
+                                    <div class="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-xl border border-amber-100 dark:border-amber-800">
+                                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-800 dark:text-white" data-en="LED Strip (Chamber)" data-tl="Ilaw sa Loob ng Chamber">LED Strip (Chamber)</p>
+                                        <p class="text-[11px] text-slate-500 dark:text-slate-400">12V Power • PWM Control</p>
+                                    </div>
+                                </div>
+                                <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggleLed" id="toggleLed" checked onchange="sendToESP32('LED Strip', this.checked)" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                    <label for="toggleLed" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 text-[10px] text-slate-500 dark:text-slate-400 font-bold px-1">
+                                <span class="w-24" data-en="Brightness:" data-tl="Liwanag:">Brightness: <span id="bright-val">80</span>%</span>
+                                <input type="range" min="0" max="100" value="80" onchange="sendToESP32('LED Brightness', this.value + '%')" oninput="document.getElementById('bright-val').textContent=this.value" class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                        </div>
+                        
+                        <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 font-medium mt-auto pt-2" data-en="Switch to MANUAL mode to override automated fans" data-tl="Lumipat sa MANUAL mode para kontrolin nang kusa ang fans">Switch to MANUAL mode to override automated fans</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Diagnostics Accordion -->
+        <details class="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all" open>
+            <summary class="flex justify-between items-center font-bold cursor-pointer p-6 sm:p-8 text-slate-800 dark:text-white text-base select-none outline-none border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center">
+                    <span class="mr-3 text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg text-sm">>_</span> 
+                    <span data-en="Technical Diagnostics (ESP32 Serial & Supabase Telemetry)" data-tl="Teknikal na Datos at Telemetry">Technical Diagnostics (ESP32 Serial & Supabase Telemetry)</span>
+                </div>
+                <svg class="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </summary>
+            
+            <div class="p-6 sm:p-8 grid grid-cols-1 xl:grid-cols-12 gap-8">
+                <!-- Chart Area -->
+                <div class="xl:col-span-8">
+                    <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
+                        <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center" data-en="Historical Trends: 24h" data-tl="Kasaysayan ng Datos (24 oras)"><svg class="w-5 h-5 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg> Historical Trends: 24h</h4>
+                        <div class="flex space-x-5 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 mr-2"></span> <span data-en="Temp °C" data-tl="Temperatura">Temp °C</span></span>
+                            <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></span> <span data-en="Humidity %" data-tl="Halumigmig">Humidity %</span></span>
+                            <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2"></span> <span data-en="Moisture %" data-tl="Basa">Moisture %</span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- SVG Chart Mockup -->
+                    <div class="w-full h-72 border-l-2 border-b-2 border-slate-200 dark:border-slate-700 relative ml-6 mb-6">
+                        <!-- Y Axis labels -->
+                        <div class="absolute -left-8 top-0 text-[10px] text-slate-400 font-mono flex flex-col justify-between h-full py-1">
+                            <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>
+                        </div>
+                        <div class="absolute -right-8 top-0 text-[10px] text-slate-400 font-mono flex flex-col justify-between h-full py-1">
+                            <span>80</span><span>60</span><span>40</span><span>20</span><span>0</span>
+                        </div>
+                        
+                        <!-- X Axis labels -->
+                        <div class="absolute -bottom-7 left-0 w-full text-[10px] text-slate-400 font-mono flex justify-between px-2">
+                            <span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span>
+                        </div>
+
+                        <!-- Threshold dashed line -->
+                        <div class="absolute bottom-[20%] left-0 w-full border-t border-dashed border-emerald-400 dark:border-emerald-600"></div>
+                        <span class="absolute bottom-[22%] right-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-white dark:bg-slate-900 px-1" data-en="6% Safe Copra Threshold" data-tl="Ligtas na Antas (6% Basa)">6% Safe Copra Threshold</span>
+
+                        <!-- SVG Lines -->
+                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <path fill="none" stroke="#fbbf24" stroke-width="0.8" d="M0,50 Q20,48 40,45 T70,42 T100,40" />
+                            <path fill="none" stroke="#3b82f6" stroke-width="0.8" d="M0,30 Q20,40 40,45 T70,60 T100,75" />
+                            <path fill="none" stroke="#10b981" stroke-width="0.8" d="M0,40 Q30,45 50,60 T80,75 T100,80" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Log Batch Form -->
+                <div class="xl:col-span-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 sm:p-7">
+                    <h4 class="text-sm font-bold text-emerald-700 dark:text-emerald-400 flex items-center mb-6" data-en="Log Batch Results" data-tl="I-rekord ang Resulta"><svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Log Batch Results</h4>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5" data-en="Initial Moisture Content (Mi) - %" data-tl="Unang Pagkabasa - %">Initial Moisture Content (Mi) - %</label>
+                            <input type="text" value="50.0" class="w-full text-sm font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-white border border-amber-300 dark:border-amber-600 focus:ring-2 focus:ring-amber-500 rounded-xl px-4 py-2.5 outline-none transition">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5" data-en="Final Moisture Content (Mf) - %" data-tl="Huling Pagkabasa - %">Final Moisture Content (Mf) - %</label>
+                            <input type="text" value="6.0" class="w-full text-sm font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500 rounded-xl px-4 py-2.5 outline-none transition">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 leading-tight" data-en="Percentage Moisture Reduction" data-tl="Ibinaba ng Basa (%)">Percentage Moisture Reduction</label>
+                                <input type="text" value="88.0" readonly class="w-full text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 leading-tight" data-en="Average Drying Rate" data-tl="Bilis ng Pagkatuyo">Average Drying Rate</label>
+                                <input type="text" value="0.92" readonly class="w-full text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5" data-en="Final CV Mold Contamination Level" data-tl="Huling Antas ng Amag sa Camera">Final CV Mold Contamination Level</label>
+                            <select class="w-full text-sm font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none">
+                                <option>NONE (Safe)</option>
+                                <option>LOW (Warning)</option>
+                                <option>HIGH (Critical)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-end mb-1.5">
+                                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider" data-en="Aflatoxin Rapid Test (LFIA Kit)" data-tl="Resulta sa Aflatoxin Rapid Test">Aflatoxin Rapid Test (LFIA Kit)</label>
+                                <span class="text-[9px] font-bold text-slate-400">Threshold: 20 ppb</span>
+                            </div>
+                            <select class="w-full text-sm font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-2.5 outline-none">
+                                <option>Negative (<20 ppb)</option>
+                                <option>Positive (>20 ppb)</option>
+                            </select>
+                            <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-2 flex items-center" data-en="Safe for storage & trade" data-tl="Ligtas itago at ibenta"><svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Safe for storage & trade</p>
+                        </div>
+                        
+                        <button onclick="sendToESP32('Export', 'Downloading Data')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-3.5 rounded-xl transition shadow-md flex justify-center items-center mt-4">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span data-en="Export Batch Data (.CSV)" data-tl="I-download ang Datos (.CSV)">Export Batch Data (.CSV)</span>
+                        </button>
+                        
+                        <div class="flex justify-between items-center text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+                            <span>BATCH-2026-001</span>
+                            <span>10/09/2026</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+    </main>
+
+    <script>
+        // Supabase Initialization
+        const SUPABASE_URL = 'https://wvpyqzzcfzwtmcfaeejz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_h0U05WcbvI6VT03EVrxtgg_Acj5c_zK';
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Security: Check Session & Profile
+        async function checkUserSession() {
+            const { data: { session }, error } = await _supabase.auth.getSession();
+            if (session && session.user) {
+                const email = session.user.email;
+                const fullName = session.user.user_metadata?.full_name || '';
+                const initial = fullName ? fullName.charAt(0).toUpperCase() : email.charAt(0).toUpperCase();
+                
+                document.getElementById('user-initial').textContent = initial;
+                document.getElementById('profile-name').textContent = fullName || 'CopraCure Admin';
+                document.getElementById('profile-email').textContent = email;
+            } else {
+                window.location.href = 'index.html'; 
+            }
+        }
+        checkUserSession();
+
+        async function logout() {
+            await _supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        // Language Toggle Function (Restored)
+        function setLanguage(lang) {
+            const btnEn = document.getElementById('lang-en');
+            const btnTl = document.getElementById('lang-tl');
+            if (lang === 'tl') {
+                btnTl.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-[#124E2E] text-white shadow-sm transition";
+                btnEn.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition";
+            } else {
+                btnEn.className = "px-3 py-1.5 rounded-lg text-xs font-bold bg-[#124E2E] text-white shadow-sm transition";
+                btnTl.className = "px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 transition";
+            }
+            document.querySelectorAll('[data-en]').forEach(el => {
+                const text = el.getAttribute('data-' + lang);
+                if (text) {
+                    if (el.tagName === 'INPUT' && el.type === 'button') el.value = text;
+                    else el.textContent = text;
+                }
+            });
+        }
+
+        // ==========================================
+        // 1. SUPABASE DATABASE INTEGRATION: SENSOR_READINGS
+        // ==========================================
+        async function fetchLatestSensorData() {
+            try {
+                const { data, error } = await _supabase
+                    .from('SENSOR_READINGS')
+                    .select('temperature_c, humidity_rh, moisture_probe_raw')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    const reading = data[0];
+                    if (reading.temperature_c !== null) document.getElementById('val-temp').textContent = reading.temperature_c.toFixed(1);
+                    if (reading.humidity_rh !== null) document.getElementById('val-hum').textContent = reading.humidity_rh.toFixed(1);
+                    if (reading.moisture_probe_raw !== null) document.getElementById('val-moist').textContent = reading.moisture_probe_raw.toFixed(1);
+                }
+            } catch (err) {
+                console.error("Error fetching sensor data:", err.message);
+            }
+        }
+        
+        fetchLatestSensorData();
+        setInterval(fetchLatestSensorData, 10000);
+
+        // ==========================================
+        // 2. SUPABASE DATABASE INTEGRATION: ALERTS
+        // ==========================================
+        async function simulateCVAlert(level) {
+            const riskIndicator = document.getElementById('cv-risk-indicator');
+            const riskText = document.getElementById('cv-risk-text');
+            const stratLabel = document.getElementById('cv-strat-label');
+            
+            let alertType = 'Mold Contamination';
+            let alertStatus = '';
+
+            if (level === 'HIGH') {
+                alertStatus = 'HIGH RISK';
+                riskIndicator.className = "w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse";
+                riskText.className = "text-sm font-black text-red-600 dark:text-red-400";
+                riskText.textContent = alertStatus;
+                stratLabel.className = "text-red-600 dark:text-red-400 font-bold";
+                stratLabel.textContent = "HIGH (>75% surface)";
+                document.getElementById('camera-feed-container').classList.add('border-red-600');
+                showToast("CRITICAL: High mold contamination detected.");
+            } else if (level === 'LOW') {
+                alertStatus = 'MODERATE RISK';
+                riskIndicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+                riskText.className = "text-sm font-black text-amber-600 dark:text-amber-400";
+                riskText.textContent = alertStatus;
+                stratLabel.className = "text-amber-600 dark:text-amber-400 font-bold";
+                stratLabel.textContent = "LOW (10-75% surface)";
+                showToast("WARNING: Low mold formation detected.");
+            } else {
+                alertStatus = 'LOW RISK';
+                riskIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+                riskText.className = "text-sm font-black text-emerald-600 dark:text-emerald-400";
+                riskText.textContent = alertStatus;
+                stratLabel.className = "text-emerald-600 dark:text-emerald-400 font-bold";
+                stratLabel.textContent = "NONE (0%)";
+                document.getElementById('camera-feed-container').classList.remove('border-red-600');
+            }
+
+            try {
+                const { error } = await _supabase
+                    .from('ALERTS')
+                    .insert([{ 
+                        alert_type: alertType, 
+                        alert_status: alertStatus 
+                    }]);
+                if (error) console.error("Error logging alert to Supabase:", error);
+            } catch(e) {
+                console.error("Supabase insert failed", e);
+            }
+        }
+
+        // ==========================================
+        // 3. SUPABASE DATABASE INTEGRATION: CONTROL_EVENTS
+        // ==========================================
+        async function sendToESP32(device, state) {
+            let statusText = state === true ? "ON" : (state === false ? "OFF" : state);
+            console.log(`[ESP32 TRIGGER] ${device} -> ${statusText}`);
+            
+            // Tinanggal ang showToast dito para sa mga ilaw/fan para hindi OA at hindi lumabas sa bawat pindot
+            if(device === 'EMERGENCY STOP' || device === 'Export' || device.includes('Camera')) {
+                showToast(`${device}: ${statusText}`);
+            }
+
+            try {
+                const { error } = await _supabase
+                    .from('CONTROL_EVENTS')
+                    .insert([{ 
+                        equipment_name: device, 
+                        event_reason: statusText 
+                    }]);
+                if (error) console.error("Error logging control event:", error);
+            } catch (e) {
+                console.error("Supabase control event insert failed", e);
+            }
+        }
+
+        function triggerEStop() {
+            if(confirm("DANGER: Engaging E-STOP will cut all 220V power to the heater and fans. Proceed?")) {
+                sendToESP32('EMERGENCY STOP', 'ACTIVATED');
+                document.body.classList.add('border-8', 'border-red-600');
+                setTimeout(() => document.body.classList.remove('border-8', 'border-red-600'), 2000);
+            }
+        }
+
+        function setMode(mode) {
+            const btnAuto = document.getElementById('btn-auto');
+            const btnManual = document.getElementById('btn-manual');
+
+            if(mode === 'AUTO') {
+                btnAuto.className = "bg-emerald-600 text-white px-3 py-1.5 rounded-lg shadow-sm transition";
+                btnManual.className = "text-slate-500 dark:text-slate-400 px-3 py-1.5 hover:text-slate-800 dark:hover:text-white transition";
+            } else {
+                btnManual.className = "bg-amber-500 text-white px-3 py-1.5 rounded-lg shadow-sm transition";
+                btnAuto.className = "text-slate-500 dark:text-slate-400 px-3 py-1.5 hover:text-slate-800 dark:hover:text-white transition";
+            }
+            sendToESP32('System Mode', mode);
+        }
+
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = message;
+            toast.classList.remove('translate-x-full', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, 3000);
+        }
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('en-US');
+        }, 1000);
+        
+        function toggleTheme() {
+            const html = document.documentElement;
+            const sunIcon = document.getElementById('sun-icon');
+            const moonIcon = document.getElementById('moon-icon');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.getElementById('sun-icon').classList.remove('hidden');
+            document.getElementById('moon-icon').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
